@@ -23,11 +23,12 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const app = express();
-const port = process.env.PORT || 8080;
 const timeLimit = 7 * 24 * 60 * 60 * 1000;
 const apiKeyFile = path.join(__dirname, 'apikeyall.json');
 const visitorFile = 'visitors.json';
 const visitorFilee = 'count.json';
+
+app.use(express.static(path.join(__dirname)));
 
 // خواندن تعداد بازدیدکنندگان از فایل
 const getVisitorCount = () => {
@@ -4164,7 +4165,5 @@ app.get('/api/tools/qrcode', async (req, res) => {
         });
     }
 });
-// راه‌اندازی سرور
-app.listen(port, () => {
-    console.log(`Server running at http://localhost:${port}`);
-});
+
+module.exports = app;
