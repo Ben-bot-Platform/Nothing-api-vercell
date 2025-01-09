@@ -5,6 +5,7 @@ const googleTTS = require('google-tts-api');
 const javascriptObfuscator = require('javascript-obfuscator');
 const axios = require('axios');
 const cheerio = require('cheerio');
+const { igStalk } = require('api-stalkerr');
 const fetch = require('node-fetch');
 const { ytmp3, ytmp4 } = require('nothing-yt');
 const ytdl = require('ytdl-core');
@@ -23,12 +24,11 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const app = express();
+const port = process.env.PORT || 8080;
 const timeLimit = 7 * 24 * 60 * 60 * 1000;
 const apiKeyFile = path.join(__dirname, 'apikeyall.json');
 const visitorFile = 'visitors.json';
 const visitorFilee = 'count.json';
-
-app.use(express.static(path.join(__dirname)));
 
 // خواندن تعداد بازدیدکنندگان از فایل
 const getVisitorCount = () => {
@@ -2909,14 +2909,11 @@ app.get('/api/downloader/play-audio', async (req, res) => {
 
         const videoUrl = firstResult.url; // URL اولین ویدیو
 
-        // درخواست به API دانلودر برای دریافت لینک MP3
-        const downloadResponse = await axios.get(
-            `https://nothing-test-endpont-e2f9ebaf6e21.herokuapp.com/api/downloader/dlmp3?url=${encodeURIComponent(videoUrl)}&apikey=${apikey}`
-        );
+        // به جای درخواست به API خارجی، از تابع داخلی استفاده کنید
+        const quality = "128"; // کیفیت دلخواه
+        const result = await ytmp3(videoUrl, quality); // فراخوانی تابع داخلی
 
-        const downloadData = downloadResponse.data;
-
-        if (!downloadData || !downloadData.result || !downloadData.result.download_url) {
+        if (!result.status) {
             return res.status(500).json({
                 status: false,
                 message: 'Error retrieving download link.'
@@ -2928,12 +2925,12 @@ app.get('/api/downloader/play-audio', async (req, res) => {
             status: true,
             creator: "Nothing-Ben",
             result: {
-                type: downloadData.result.type || "audio",
-                quality: downloadData.result.quality || "128kbps",
-                title: firstResult.title,
+                type: "audio",
+                quality: "128kbps",
+                title: result.metadata.title,
                 url: videoUrl, // URL ویدیو
-                thumbnail: firstResult.image, // تصویر بندانگشتی
-                download_url: downloadData.result.download_url // لینک دانلود
+                thumbnail: result.metadata.thumbnail, // تصویر بندانگشتی
+                download_url: result.download.url // لینک دانلود
             }
         };
 
@@ -2947,6 +2944,68 @@ app.get('/api/downloader/play-audio', async (req, res) => {
             error: err.message
         });
     }
+});
+// PLAY VIDEO
+app.get('/api/downloader/play-video', async (req, res) => {
+  const text = req.query.text;  // متن جستجو
+  const apikey = req.query.apikey;  // کلید API
+
+  if (!text || !apikey) {
+    return res.status(400).json({
+      status: false,
+      message: 'Text and API key are required.'
+    });
+  }
+
+  try {
+    // جستجو با استفاده از کتابخانه yt-search
+    const searchResults = await ytSearch(text);
+    const firstResult = searchResults.videos[0];  // انتخاب اولین ویدیو
+
+    if (!firstResult) {
+      return res.status(404).json({
+        status: false,
+        message: 'No results found for the search query.'
+      });
+    }
+
+    const videoUrl = firstResult.url;  // URL اولین ویدیو
+
+    // به جای درخواست به API خارجی، از تابع داخلی استفاده کنید
+    const quality = "720";  // کیفیت دلخواه
+    const result = await ytmp4(videoUrl, quality);  // فراخوانی تابع داخلی برای دریافت لینک ویدیو
+
+    if (!result.status) {
+      return res.status(500).json({
+        status: false,
+        message: 'Error retrieving download link.'
+      });
+    }
+
+    // ارسال پاسخ به کاربر
+    const responseData = {
+      status: true,
+      creator: "Nothing-Ben",
+      result: {
+        type: "video",
+        quality: "720p",
+        title: result.metadata.title,
+        url: videoUrl,  // URL ویدیو
+        thumbnail: result.metadata.thumbnail,  // تصویر بندانگشتی
+        download_url: result.download.url  // لینک دانلود
+      }
+    };
+
+    res.setHeader('Content-Type', 'application/json');
+    res.send(JSON.stringify(responseData, null, 2));  // JSON با فرمت زیبا
+
+  } catch (err) {
+    res.status(500).json({
+      status: false,
+      message: 'Error processing request.',
+      error: err.message
+    });
+  }
 });
 //XNXX SEARCH
 app.get('/api/search/xnxx-search', async (req, res) => {
@@ -3198,6 +3257,51 @@ app.get("/api/movie/movie", async (req, res) => {
             message: "An error occurred while fetching movie data",
         });
     }
+});
+//INSTAGRAM STALK
+app.get('/api/stalk/Instagram-stalk', async (req, res) => {
+  const username = req.query.user;  // گرفتن نام کاربری از URL
+  
+  if (!username) {
+    return res.status(400).json({
+      status: false,
+      message: 'Please provide a username in the query parameters.'
+    });
+  }
+
+  try {
+    const data = await igStalk(username);  // فراخوانی پکیج 'api-stalkerr'
+    if (data.status) {
+      // ساخت پاسخ جدید با فرمت دلخواه شما
+      const result = {
+        status: true,
+        creator: 'Nothing-ben',
+        result: {
+          type: 'Instagram-stalk',
+          name: data.name,
+          username: data.username,
+          description: data.description,
+          posts: data.posts,
+          followers: data.followers,
+          following: data.following,
+          profilePic: data.profilePic
+        }
+      };
+      res.json(result);  // ارسال پاسخ با فرمت جدید
+    } else {
+      res.status(500).json({
+        status: false,
+        message: 'Error fetching Instagram data.',
+        error: data.message
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      status: false,
+      message: 'Internal Server Error',
+      error: error.message
+    });
+  }
 });
 //TIKTOK STALK
 const tiktokstalk = async (user) => {
@@ -4165,5 +4269,7 @@ app.get('/api/tools/qrcode', async (req, res) => {
         });
     }
 });
-
-module.exports = app;
+// راه‌اندازی سرور
+app.listen(port, () => {
+    console.log(`Server running at http://localhost:${port}`);
+});
