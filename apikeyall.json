@@ -1,0 +1,20 @@
+{
+  "nothing-api": {
+    "limit": 99999999999999,
+    "used": 0,
+    "lastReset": 9999999999999,
+    "users": {}
+  },
+  "nothing-ben": {
+    "limit": 200,
+    "used": 0,
+    "lastReset": 1683456000000,
+    "users": {}
+  },
+  "king": {
+    "limit": 500,
+    "used": 0,
+    "lastReset": 1683456000000,
+    "users": {}
+  }
+}
